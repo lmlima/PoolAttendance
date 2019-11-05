@@ -1,4 +1,6 @@
-def lstm_model(data_window, data_features, n_labels, output=True):
+import tensorflow as tf
+
+def lstm_model(data_window, data_features, output=True):
     model = tf.keras.Sequential()
 
     # LSTM Layer
@@ -23,8 +25,7 @@ def lstm_model(data_window, data_features, n_labels, output=True):
 
     # Output layer
     if output:
-        model.add( tf.keras.layers.Dense(units=n_labels, activation='softmax') )
-        # model.add( tf.keras.layers.Dense(units=1, activation='sigmoid') )
-
+        # model.add( tf.keras.layers.Dense(units=n_labels, activation='softmax') )
+        model.add( tf.keras.layers.Dense(units=1, activation='relu') )
 
     return model
