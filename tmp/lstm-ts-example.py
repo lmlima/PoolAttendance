@@ -19,13 +19,13 @@ dataset = hstack((in_seq1, in_seq2))
 target = in_seq2
 # define generator
 n_features = dataset.shape[1]
-n_input = 2
+window_size = 2
 n_output = target.shape[1]
-generator = TimeseriesGenerator(dataset, target, length=n_input, batch_size=8)
+generator = TimeseriesGenerator(dataset, target, length=window_size, batch_size=8)
 
 # define model
 model = Sequential()
-model.add(LSTM(100, activation='relu', input_shape=(n_input, n_features)))
+model.add(LSTM(100, activation='relu', input_shape=(window_size, n_features)))
 model.add(Dense(n_output))
 model.compile(optimizer='adam', loss='mse')
 
@@ -33,6 +33,6 @@ model.compile(optimizer='adam', loss='mse')
 model.fit_generator(generator, steps_per_epoch=1, epochs=500, verbose=1)
 
 # make a one step prediction out of sample
-x_input = array([[90, 95], [100, 105]]).reshape((1, n_input, n_features))
+x_input = array([[90, 95], [100, 105]]).reshape((1, window_size, n_features))
 yhat = model.predict(x_input, verbose=0)
 print(yhat)
