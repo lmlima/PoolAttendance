@@ -18,7 +18,7 @@ generator = TimeseriesGenerator(series, series, length=window_size, batch_size=8
 model = Sequential()
 model.add(Dense(100, activation='relu', input_dim=window_size))
 model.add(Dense(1))
-model.compile(optimizer='adam', loss='mse')
+model.compile(optimizer='adam', loss='mse', metrics=['mae', 'rmse'])
 
 # fit model
 model.fit_generator(generator, steps_per_epoch=1, epochs=300, verbose=1)
