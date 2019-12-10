@@ -26,7 +26,7 @@ naive_forecast = series[split_time - 1:-1]
 naive_forecast.index += 1
 
 result = pd.concat([x_valid, naive_forecast], axis=1, sort=False)
-result.plot(style=['-','--'])
+result.plot(style=['-', '--'])
 plt.show()
 
 x_valid = x_valid.to_numpy()
