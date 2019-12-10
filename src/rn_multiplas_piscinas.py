@@ -193,9 +193,9 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
 
 # fit model
 # n_epochs = 1500
-n_epochs = 200
+n_epochs = 5
 
-n_batch = 32
+n_batch = 256
 # validation_perc = 0.3
 model = lstm_model()
 
@@ -248,22 +248,28 @@ for i, pool in enumerate(pools):
     # X_test, Y_test = data_generator(dataset_test, target_test, window_size=window_size)
 
     # Prediction
+    df_target = pd.DataFrame(target_test, columns=["Attendance"])
+    pred_naive = df_target["Attendance"].shift(1)
+    # Ultimo do validacao é o primeiro predito do naive
+    pred_naive[0] = dict_dataset[pool]["val"][1][-1]
 
+    target_naive = target_test.reshape(1, -1)[0]
 
     # Calcula metricas
-    mse = tf.keras.metrics.mean_squared_error(result["temperatura"].to_numpy(), result[preditor].to_numpy()).numpy()
-    mae = tf.keras.metrics.mean_absolute_error(result["temperatura"].to_numpy(), result[preditor].to_numpy()).numpy()
-    root_mean_squared_error = tf.keras.metrics.RootMeanSquaredError(result["temperatura"].to_numpy(), result[preditor].to_numpy()).numpy()
+    mse = tf.keras.metrics.mean_squared_error(pred_naive.to_numpy(), target_naive).numpy()
+    mae = tf.keras.metrics.mean_absolute_error(pred_naive.to_numpy(), target_naive).numpy()
+    # root_mean_squared_error = tf.keras.metrics.RootMeanSquaredError(pred_naive.to_numpy(), target_naive).numpy()
+    root_mean_squared_error = 0
 
     loss = mae
 
-    model_eval = list(loss, mae, mse, root_mean_squared_error)
+    model_eval = list((loss, mae, mse, root_mean_squared_error))
     # model_eval = model.evaluate(X_test, Y_test, batch_size=n_batch)
     lst.append(model_eval)
 
-eval_hist = pd.DataFrame(lst, columns=model.metrics_names)
+eval_Naive_hist = pd.DataFrame(lst, columns=model.metrics_names)
 
-eval_hist.describe()
+eval_Naive_hist.describe()
 
 # """# 4. Cálculo de salva vidas
 # Calcula o número de salva vidas necessário
