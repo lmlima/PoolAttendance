@@ -67,10 +67,10 @@ import pandas as pd
 # pool_name = "McCarren"
 
 df_poolsize = pd.read_csv(
-    "https://raw.githubusercontent.com/lmlima/PoolAttendance/master/data/pool_size.csv?token=ABOSJ766O57N7ELM3W25RG2566CKU")
+    "https://raw.githubusercontent.com/lmlima/PoolAttendance/master/data/pool_size.csv")
 
 df = pd.read_csv(
-    "https://raw.githubusercontent.com/lmlima/PoolAttendance/master/data/ospa-completo.csv?token=ABOSJ75UBQYNWR44KEAYWPK566CL4")
+    "https://raw.githubusercontent.com/lmlima/PoolAttendance/master/data/ospa-completo.csv")
 df.head()
 pools = df["Pool"].unique()
 
@@ -178,8 +178,8 @@ def lstm_model():
     return model
 
 
-model = lstm_model()
-model.summary()
+# model = lstm_model()
+# model.summary()
 
 # Configuração do Tensorboard
 logdir = os.path.join("logs/multi", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
@@ -214,6 +214,7 @@ n_epochs = 50
 n_batch = 256
 # validation_perc = 0.3
 model_Multi = lstm_model()
+model_metrica = model_Multi.metrics_names
 
 for i, pool in enumerate(pools):
     print(F"Treinamento piscina {i + 1}/{len(pools)}")
@@ -238,12 +239,16 @@ for i, pool in enumerate(pools):
     model_eval = model_Multi.evaluate(X_test, Y_test, batch_size=n_batch)
     lst.append(model_eval)
 
-eval_Multipool_hist = pd.DataFrame(lst, columns=model.metrics_names).drop(columns="loss")
+eval_Multipool_hist = pd.DataFrame(lst, columns=model_metrica).drop(columns="loss")
 eval_Multipool_hist["metodo"] = "Multi"
 
 print("Abordagem Multi")
 print(F"Epochs={n_epochs}\nBatch={n_batch}\n")
 print(eval_Multipool_hist.describe())
+
+# save model and architecture to single file
+model_Multi.save("logs/modelo_multi.h5")
+print("Saved model to disk")
 
 """
     Abordagem com um modelo para cada piscina
@@ -258,11 +263,14 @@ model_Single = {}
 
 
 # Configuração do Tensorboard
-logdir = os.path.join("logs/single", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-tensorboard_callback_single = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
+# logdir = os.path.join("logs/single", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+# tensorboard_callback_single = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
 
 for i, pool in enumerate(pools):
     print(F"Treinamento piscina {i + 1}/{len(pools)}")
+    # Configuração do Tensorboard
+    logdir = os.path.join("logs/single", str(i+1), datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    tensorboard_callback_single = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1, update_freq='epoch')
 
     # Create model
     model_Single[pool] = lstm_model()
@@ -273,8 +281,8 @@ for i, pool in enumerate(pools):
     X_train, Y_train = data_generator(dataset_train, target_train, window_size=window_size)
     X_val, Y_val = data_generator(dataset_val, target_val, window_size=window_size)
 
-    model_Single[pool].fit(X_train, Y_train, batch_size=n_batch, validation_data=(X_val, Y_val), shuffle=False, epochs=n_epochs,
-              callbacks=[tensorboard_callback_single], verbose=0)
+    model_Single[pool].fit(X_train, Y_train, batch_size=n_batch, validation_data=(X_val, Y_val), epochs=n_epochs,
+              callbacks=[tensorboard_callback_single], verbose=1)
 
 # Evaluate
 lst = []
@@ -287,7 +295,7 @@ for i, pool in enumerate(pools):
     model_eval = model_Single[pool].evaluate(X_test, Y_test, batch_size=n_batch)
     lst.append(model_eval)
 
-eval_Singlepool_hist = pd.DataFrame(lst, columns=model.metrics_names).drop(columns="loss")
+eval_Singlepool_hist = pd.DataFrame(lst, columns=model_metrica).drop(columns="loss")
 eval_Singlepool_hist["metodo"] = "Single"
 
 
@@ -324,7 +332,7 @@ for i, pool in enumerate(pools):
     # model_eval = model.evaluate(X_test, Y_test, batch_size=n_batch)
     lst.append(model_eval)
 
-eval_Naive_hist = pd.DataFrame(lst, columns=model.metrics_names).drop(columns="loss")
+eval_Naive_hist = pd.DataFrame(lst, columns=model_metrica).drop(columns="loss")
 eval_Naive_hist["metodo"] = "naive"
 
 eval_Naive_hist.describe()
@@ -391,7 +399,7 @@ plt.show()
 # y_pred = int(model.predict(pred_x))
 #
 # print(F"Presença real: {y_real}\nPresença predita: {y_pred}\nDiferença: {y_real - y_pred}")
-
+#
 # import math
 #
 #

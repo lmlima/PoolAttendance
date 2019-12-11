@@ -7,6 +7,7 @@ mae
 multi    34
 naive    21
 Name: mae, dtype: int64
+
 mse
 single    30
 naive     25
@@ -15,6 +16,7 @@ mae
 single    36
 naive     19
 Name: mae, dtype: int64
+
 mse
 multi     31
 single    24
