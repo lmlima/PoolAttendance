@@ -32,6 +32,9 @@ Foram usadas as bibliotecas:
 import tensorflow as tf
 import os
 import datetime
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 from numpy import array
 from numpy import hstack
@@ -170,7 +173,7 @@ def lstm_model():
     adam_opt = tf.keras.optimizers.Adam(learning_rate=lr)
 
     # Métricas e definição do modelo
-    model.compile(optimizer=adam_opt, loss='mae', metrics=['mae', 'mse', tf.keras.metrics.RootMeanSquaredError()])
+    model.compile(optimizer=adam_opt, loss='mae', metrics=['mae', 'mse'])
 
     return model
 
@@ -179,27 +182,13 @@ model = lstm_model()
 model.summary()
 
 # Configuração do Tensorboard
-logdir = os.path.join("logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-tensorboard_callback = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
+logdir = os.path.join("logs/multi", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+tensorboard_callback_multi = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
 
 """## 3.2. Treinamento
 - Apresentar os hiperparâmetros e pq
 - Visualizar treinamento
 """
-
-# Commented out IPython magic to ensure Python compatibility.
-# @title Visualizar treinamento
-# %tensorboard --logdir logs
-
-# fit model
-# n_epochs = 1500
-n_epochs = 5
-
-n_batch = 256
-# validation_perc = 0.3
-model = lstm_model()
-
-
 def data_generator(x, y, window_size):
     data_length = len(y)
 
@@ -211,6 +200,21 @@ def data_generator(x, y, window_size):
     return (X, Y)
 
 
+# Commented out IPython magic to ensure Python compatibility.
+# @title Visualizar treinamento
+# %tensorboard --logdir logs
+
+"""
+    Abordagem com um único modelo para todas as piscinas
+"""
+# fit model
+# n_epochs = 1500
+n_epochs = 50
+
+n_batch = 256
+# validation_perc = 0.3
+model_Multi = lstm_model()
+
 for i, pool in enumerate(pools):
     print(F"Treinamento piscina {i + 1}/{len(pools)}")
 
@@ -220,8 +224,8 @@ for i, pool in enumerate(pools):
     X_train, Y_train = data_generator(dataset_train, target_train, window_size=window_size)
     X_val, Y_val = data_generator(dataset_val, target_val, window_size=window_size)
 
-    model.fit(X_train, Y_train, batch_size=n_batch, validation_data=(X_val, Y_val), shuffle=False, epochs=n_epochs,
-              callbacks=[tensorboard_callback], verbose=0)
+    model_Multi.fit(X_train, Y_train, batch_size=n_batch, validation_data=(X_val, Y_val), shuffle=False, epochs=n_epochs,
+              callbacks=[tensorboard_callback_multi], verbose=0)
 
 # Evaluate
 lst = []
@@ -231,14 +235,69 @@ for i, pool in enumerate(pools):
     dataset_test, target_test = dict_dataset[pool]["test"]
     X_test, Y_test = data_generator(dataset_test, target_test, window_size=window_size)
 
-    model_eval = model.evaluate(X_test, Y_test, batch_size=n_batch)
+    model_eval = model_Multi.evaluate(X_test, Y_test, batch_size=n_batch)
     lst.append(model_eval)
 
-eval_hist = pd.DataFrame(lst, columns=model.metrics_names)
+eval_Multipool_hist = pd.DataFrame(lst, columns=model.metrics_names).drop(columns="loss")
+eval_Multipool_hist["metodo"] = "Multi"
 
+print("Abordagem Multi")
 print(F"Epochs={n_epochs}\nBatch={n_batch}\n")
-print(eval_hist.describe())
+print(eval_Multipool_hist.describe())
 
+"""
+    Abordagem com um modelo para cada piscina
+"""
+# fit model
+# n_epochs = 1500
+n_epochs = 200
+
+n_batch = 32
+# validation_perc = 0.3
+model_Single = {}
+
+
+# Configuração do Tensorboard
+logdir = os.path.join("logs/single", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+tensorboard_callback_single = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
+
+for i, pool in enumerate(pools):
+    print(F"Treinamento piscina {i + 1}/{len(pools)}")
+
+    # Create model
+    model_Single[pool] = lstm_model()
+
+    dataset_train, target_train = dict_dataset[pool]["train"]
+    dataset_val, target_val = dict_dataset[pool]["val"]
+
+    X_train, Y_train = data_generator(dataset_train, target_train, window_size=window_size)
+    X_val, Y_val = data_generator(dataset_val, target_val, window_size=window_size)
+
+    model_Single[pool].fit(X_train, Y_train, batch_size=n_batch, validation_data=(X_val, Y_val), shuffle=False, epochs=n_epochs,
+              callbacks=[tensorboard_callback_single], verbose=0)
+
+# Evaluate
+lst = []
+for i, pool in enumerate(pools):
+    print(F"Avaliação piscina {i + 1}/{len(pools)}")
+
+    dataset_test, target_test = dict_dataset[pool]["test"]
+    X_test, Y_test = data_generator(dataset_test, target_test, window_size=window_size)
+
+    model_eval = model_Single[pool].evaluate(X_test, Y_test, batch_size=n_batch)
+    lst.append(model_eval)
+
+eval_Singlepool_hist = pd.DataFrame(lst, columns=model.metrics_names).drop(columns="loss")
+eval_Singlepool_hist["metodo"] = "Single"
+
+
+print("Abordagem Single")
+print(F"Epochs={n_epochs}\nBatch={n_batch}\n")
+print(eval_Singlepool_hist.describe())
+
+"""
+    Abordagem Naive
+"""
 # Evaluate Naive
 lst = []
 for i, pool in enumerate(pools):
@@ -258,18 +317,66 @@ for i, pool in enumerate(pools):
     # Calcula metricas
     mse = tf.keras.metrics.mean_squared_error(pred_naive.to_numpy(), target_naive).numpy()
     mae = tf.keras.metrics.mean_absolute_error(pred_naive.to_numpy(), target_naive).numpy()
-    # root_mean_squared_error = tf.keras.metrics.RootMeanSquaredError(pred_naive.to_numpy(), target_naive).numpy()
-    root_mean_squared_error = 0
 
-    loss = mae
+    loss = 0
 
-    model_eval = list((loss, mae, mse, root_mean_squared_error))
+    model_eval = list((loss, mae, mse))
     # model_eval = model.evaluate(X_test, Y_test, batch_size=n_batch)
     lst.append(model_eval)
 
-eval_Naive_hist = pd.DataFrame(lst, columns=model.metrics_names)
+eval_Naive_hist = pd.DataFrame(lst, columns=model.metrics_names).drop(columns="loss")
+eval_Naive_hist["metodo"] = "naive"
 
 eval_Naive_hist.describe()
+
+# Comparação com naive
+print("Comparação desempenho por piscina")
+eval_diff = eval_Multipool_hist.drop(columns="metodo") - eval_Naive_hist.drop(columns="metodo")
+print("mse")
+print(np.sign(eval_diff)["mse"].value_counts().rename(index={1.0: "multi", -1.0: "naive"}))
+print("mae")
+print(np.sign(eval_diff)["mae"].value_counts().rename(index={1.0: "multi", -1.0: "naive"}))
+
+eval_diff = eval_Singlepool_hist.drop(columns="metodo") - eval_Naive_hist.drop(columns="metodo")
+print("mse")
+print(np.sign(eval_diff)["mse"].value_counts().rename(index={1.0: "single", -1.0: "naive"}))
+print("mae")
+print(np.sign(eval_diff)["mae"].value_counts().rename(index={1.0: "single", -1.0: "naive"}))
+
+eval_diff = eval_Singlepool_hist.drop(columns="metodo") - eval_Multipool_hist.drop(columns="metodo")
+print("mse")
+print(np.sign(eval_diff)["mse"].value_counts().rename(index={1.0: "single", -1.0: "multi"}))
+print("mae")
+print(np.sign(eval_diff)["mae"].value_counts().rename(index={1.0: "single", -1.0: "multi"}))
+
+
+evals = pd.concat([eval_Naive_hist.reset_index(),
+           eval_Singlepool_hist.reset_index(),
+           eval_Multipool_hist.reset_index()], axis="rows", ignore_index=True)
+
+df_evals = pd.melt(evals, id_vars=['index', 'metodo'], var_name='metrica')
+df_evals.to_pickle("logs/df_evals.pkl")
+# col_mse = [k for k in evals.columns if 'mse' in k]
+# col_mae = [k for k in evals.columns if 'mae' in k]
+
+# Comparação total de erro
+ax = sns.catplot(y="metodo", x="value", data=df_evals[df_evals.metrica=="mse"].drop(columns="metrica"), orient="h", kind="bar")
+plt.title('MSE médio das piscinas')
+plt.show()
+
+sns.catplot(y="metodo", x="value", data=df_evals[df_evals.metrica=="mae"].drop(columns="metrica"), orient="h", kind="bar")
+plt.title('MAE médio das piscinas')
+plt.show()
+
+# Comapracao por piscina
+sns.catplot(y="index", x="value", hue="metodo", data=df_evals[df_evals.metrica=="mse"].drop(columns="metrica"), orient="h", kind="bar", height=18.27)
+plt.title('MSE das piscinas')
+plt.show()
+
+sns.catplot(y="index", x="value", hue="metodo", data=df_evals[df_evals.metrica=="mae"].drop(columns="metrica"), orient="h", kind="bar", height=18.27)
+plt.title('MAE das piscinas')
+plt.show()
+
 
 # """# 4. Cálculo de salva vidas
 # Calcula o número de salva vidas necessário

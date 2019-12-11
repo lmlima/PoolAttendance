@@ -1,0 +1,25 @@
+Comparação desempenho por piscina
+mse
+multi    33
+naive    22
+Name: mse, dtype: int64
+mae
+multi    34
+naive    21
+Name: mae, dtype: int64
+mse
+single    30
+naive     25
+Name: mse, dtype: int64
+mae
+single    36
+naive     19
+Name: mae, dtype: int64
+mse
+multi     31
+single    24
+Name: mse, dtype: int64
+mae
+multi     28
+single    27
+Name: mae, dtype: int64
